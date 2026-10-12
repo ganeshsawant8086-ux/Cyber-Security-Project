@@ -1,0 +1,1701 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Identity Lifecycle & Access Orchestration Platform",
+    "description": "\n## Cloud Security Architecture Portfolio Demo\n\nDemonstrates an end-to-end access management pipeline:\n* **ServiceNow Mock Ingress:** Receives change/lifecycle requests (Onboarding, Role Changes, Offboarding).\n* **OIDC/OAuth2 Authentication:** Validates caller identity tokens with standard claim checks (exp, iss, aud, roles).\n* **Policy Decision Point (PDP):** Context-aware Attribute-Based Access Control (ABAC) via Open Policy Agent (OPA).\n* **Asynchronous Event Orchestration:** Google Cloud Pub/Sub with dead-letter queue (DLQ) support and worker idempotency.\n* **Audit & Compliance:** Structured audit trails, access review certifications, and security anomaly detection.\n\n*Note: Built with mock adapters and local demo cryptography. Does not connect to live corporate IdPs or customer environments.*\n    ",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/healthz": {
+      "get": {
+        "tags": [
+          "Health & Probes"
+        ],
+        "summary": "Liveness Probe",
+        "description": "Liveness probe: verifies process is alive.",
+        "operationId": "liveness_probe_healthz_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/readyz": {
+      "get": {
+        "tags": [
+          "Health & Probes"
+        ],
+        "summary": "Readiness Probe",
+        "description": "Readiness probe: verifies database connectivity and core subsystems.",
+        "operationId": "readiness_probe_readyz_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/token": {
+      "post": {
+        "tags": [
+          "Authentication & Token Inspection"
+        ],
+        "summary": "Generate Demo Token",
+        "description": "Generate a signed JWT token demonstrating standard OIDC/OAuth2 claims.\n\nUse this endpoint to generate tokens for fictional personas:\n- Alice (HR Admin): roles=[\"hr_admin\"]\n- Bob (Identity Admin): roles=[\"identity_admin\"]\n- Charlie (Standard Engineer): roles=[\"engineer\"]\n- Eve (Restricted Contractor): roles=[\"contractor\"]",
+        "operationId": "generate_demo_token_api_v1_auth_token_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/inspect": {
+      "post": {
+        "tags": [
+          "Authentication & Token Inspection"
+        ],
+        "summary": "Inspect Token",
+        "description": "Inspect and cryptographically validate an arbitrary JWT token.\n\nValidates signature, issuer, audience, and expiration.",
+        "operationId": "inspect_token_api_v1_auth_inspect_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TokenValidateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionInspectResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/session": {
+      "get": {
+        "tags": [
+          "Authentication & Token Inspection"
+        ],
+        "summary": "Inspect Current Session",
+        "description": "Inspect the caller's active session extracted from Authorization: Bearer <token> header.",
+        "operationId": "inspect_current_session_api_v1_auth_session_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionInspectResponse"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/lifecycle/request": {
+      "post": {
+        "tags": [
+          "Identity Lifecycle Orchestration"
+        ],
+        "summary": "Process Servicenow Request",
+        "description": "Receive and evaluate a ServiceNow lifecycle ticket (ONBOARD, ROLE_CHANGE, OFFBOARD).\n\nSteps executed:\n1. Caller authentication via JWT Bearer token\n2. Context-aware ABAC policy check via Open Policy Agent (OPA)\n3. Identity record state updates in PostgreSQL\n4. Lifecycle event publishing to Google Cloud Pub/Sub\n5. Structured audit event generation",
+        "operationId": "process_servicenow_request_api_v1_lifecycle_request_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceNowLifecycleTicket"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LifecycleResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/lifecycle/onboard": {
+      "post": {
+        "tags": [
+          "Identity Lifecycle Orchestration"
+        ],
+        "summary": "Onboard User",
+        "description": "Dedicated endpoint to onboard a new employee.",
+        "operationId": "onboard_user_api_v1_lifecycle_onboard_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceNowLifecycleTicket"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LifecycleResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/lifecycle/offboard": {
+      "post": {
+        "tags": [
+          "Identity Lifecycle Orchestration"
+        ],
+        "summary": "Offboard User",
+        "description": "Dedicated endpoint to immediately offboard a user and revoke all credentials.",
+        "operationId": "offboard_user_api_v1_lifecycle_offboard_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceNowLifecycleTicket"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LifecycleResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/policies/evaluate": {
+      "post": {
+        "tags": [
+          "Policy Decision Point (OPA)"
+        ],
+        "summary": "Evaluate Access Policy",
+        "description": "Evaluate context-aware ABAC access authorization via Open Policy Agent (OPA).\n\nConsiders:\n- Subject attributes (role, department)\n- Action (read, write, delete, admin, provision)\n- Resource attributes (sensitivity, type)\n- Contextual signals (device trust posture, risk level)",
+        "operationId": "evaluate_access_policy_api_v1_policies_evaluate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PolicyEvaluationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PolicyEvaluationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/reviews/campaigns": {
+      "get": {
+        "tags": [
+          "Access Reviews & Attestation"
+        ],
+        "summary": "List Campaigns",
+        "description": "List all access review campaigns with items.",
+        "operationId": "list_campaigns_api_v1_reviews_campaigns_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AccessReviewCampaignResponse"
+                  },
+                  "type": "array",
+                  "title": "Response List Campaigns Api V1 Reviews Campaigns Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Access Reviews & Attestation"
+        ],
+        "summary": "Create Access Review Campaign",
+        "description": "Create a periodic access review campaign for all active user entitlements.",
+        "operationId": "create_access_review_campaign_api_v1_reviews_campaigns_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessReviewCampaignCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessReviewCampaignResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/reviews/items/{item_id}/decide": {
+      "post": {
+        "tags": [
+          "Access Reviews & Attestation"
+        ],
+        "summary": "Submit Review Decision",
+        "description": "Submit certification or revocation decision for a specific entitlement.",
+        "operationId": "submit_review_decision_api_v1_reviews_items__item_id__decide_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccessReviewDecisionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccessReviewItemResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/anomalies/simulate": {
+      "post": {
+        "tags": [
+          "Simulated Security Anomalies"
+        ],
+        "summary": "Simulate Security Anomaly",
+        "description": "Simulate a security anomaly to demonstrate context-aware policy mitigation and audit alerting.",
+        "operationId": "simulate_security_anomaly_api_v1_anomalies_simulate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnomalySimulationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnomalySimulationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/audit": {
+      "get": {
+        "tags": [
+          "Audit Trail"
+        ],
+        "summary": "Query Audit Logs",
+        "description": "Query structured audit trail with correlation ID tracing and metadata filtering.",
+        "operationId": "query_audit_logs_api_v1_audit_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "actor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by actor email",
+              "title": "Actor"
+            },
+            "description": "Filter by actor email"
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by action name",
+              "title": "Action"
+            },
+            "description": "Filter by action name"
+          },
+          {
+            "name": "resource_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by resource ID / target email",
+              "title": "Resource Id"
+            },
+            "description": "Filter by resource ID / target email"
+          },
+          {
+            "name": "correlation_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by correlation ID",
+              "title": "Correlation Id"
+            },
+            "description": "Filter by correlation ID"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter by status (SUCCESS, DENIED, FAILED, ALERT)",
+              "title": "Status"
+            },
+            "description": "Filter by status (SUCCESS, DENIED, FAILED, ALERT)"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AuditEventResponse"
+                  },
+                  "title": "Response Query Audit Logs Api V1 Audit Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/status/{ticket_id}": {
+      "get": {
+        "tags": [
+          "Event Processing & DLQ"
+        ],
+        "summary": "Get Event Status By Ticket",
+        "description": "Inspect async lifecycle event processing and provision status.",
+        "operationId": "get_event_status_by_ticket_api_v1_events_status__ticket_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "ticket_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Ticket Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventProcessingStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/events/dlq": {
+      "get": {
+        "tags": [
+          "Event Processing & DLQ"
+        ],
+        "summary": "Inspect Dead Letter Queue",
+        "description": "Inspect dead-letter queue messages for troubleshooting failed async events.",
+        "operationId": "inspect_dead_letter_queue_api_v1_events_dlq_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "type": "array",
+                  "title": "Response Inspect Dead Letter Queue Api V1 Events Dlq Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/v1/events/published": {
+      "get": {
+        "tags": [
+          "Event Processing & DLQ"
+        ],
+        "summary": "Inspect Published Events",
+        "description": "Inspect published in-flight messages (for testing and verification).",
+        "operationId": "inspect_published_events_api_v1_events_published_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "additionalProperties": true,
+                    "type": "object"
+                  },
+                  "type": "array",
+                  "title": "Response Inspect Published Events Api V1 Events Published Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/pubsub/push": {
+      "post": {
+        "tags": [
+          "PubSub Worker"
+        ],
+        "summary": "Handle Pubsub Push",
+        "description": "Receives Cloud Run Eventarc / Pub/Sub push subscription messages.\n\nIn production:\nCloud Run push endpoints are protected by Google Cloud IAM OIDC tokens.",
+        "operationId": "handle_pubsub_push_pubsub_push_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AccessReviewCampaignCreate": {
+        "properties": {
+          "campaign_name": {
+            "type": "string",
+            "title": "Campaign Name",
+            "example": "Q4 2026 SOC2 Cloud Admin Attestation"
+          },
+          "due_days": {
+            "type": "integer",
+            "maximum": 90.0,
+            "minimum": 1.0,
+            "title": "Due Days",
+            "default": 14
+          }
+        },
+        "type": "object",
+        "required": [
+          "campaign_name"
+        ],
+        "title": "AccessReviewCampaignCreate",
+        "description": "Payload to initiate a new periodic access review."
+      },
+      "AccessReviewCampaignResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "campaign_name": {
+            "type": "string",
+            "title": "Campaign Name"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "created_by": {
+            "type": "string",
+            "title": "Created By"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Date"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AccessReviewItemResponse"
+            },
+            "type": "array",
+            "title": "Items",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "campaign_name",
+          "status",
+          "created_by",
+          "created_at"
+        ],
+        "title": "AccessReviewCampaignResponse"
+      },
+      "AccessReviewDecisionRequest": {
+        "properties": {
+          "decision": {
+            "type": "string",
+            "title": "Decision",
+            "description": "CERTIFIED or REVOKED",
+            "example": "CERTIFIED"
+          },
+          "justification": {
+            "type": "string",
+            "title": "Justification",
+            "example": "Verified active member of DevOps team"
+          }
+        },
+        "type": "object",
+        "required": [
+          "decision",
+          "justification"
+        ],
+        "title": "AccessReviewDecisionRequest"
+      },
+      "AccessReviewItemResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "campaign_id": {
+            "type": "string",
+            "title": "Campaign Id"
+          },
+          "user_email": {
+            "type": "string",
+            "title": "User Email"
+          },
+          "system_name": {
+            "type": "string",
+            "title": "System Name"
+          },
+          "entitlement_name": {
+            "type": "string",
+            "title": "Entitlement Name"
+          },
+          "decision": {
+            "type": "string",
+            "title": "Decision"
+          },
+          "reviewer_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reviewer Email"
+          },
+          "justification": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Justification"
+          },
+          "decided_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decided At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "campaign_id",
+          "user_email",
+          "system_name",
+          "entitlement_name",
+          "decision"
+        ],
+        "title": "AccessReviewItemResponse"
+      },
+      "AnomalySimulationRequest": {
+        "properties": {
+          "anomaly_type": {
+            "type": "string",
+            "title": "Anomaly Type",
+            "description": "Type of anomaly: IMPOSSIBLE_TRAVEL, UNTRUSTED_DEVICE_ADMIN, PRIVILEGE_ESCALATION, COMPROMISED_CREDENTIAL",
+            "example": "IMPOSSIBLE_TRAVEL"
+          },
+          "target_user_email": {
+            "type": "string",
+            "title": "Target User Email",
+            "example": "alice@example.com"
+          },
+          "simulated_context": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Simulated Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "anomaly_type",
+          "target_user_email"
+        ],
+        "title": "AnomalySimulationRequest"
+      },
+      "AnomalySimulationResponse": {
+        "properties": {
+          "anomaly_id": {
+            "type": "string",
+            "title": "Anomaly Id"
+          },
+          "anomaly_type": {
+            "type": "string",
+            "title": "Anomaly Type"
+          },
+          "target_user": {
+            "type": "string",
+            "title": "Target User"
+          },
+          "policy_action_taken": {
+            "type": "string",
+            "title": "Policy Action Taken"
+          },
+          "audit_event_logged": {
+            "type": "boolean",
+            "title": "Audit Event Logged"
+          },
+          "details": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Details"
+          }
+        },
+        "type": "object",
+        "required": [
+          "anomaly_id",
+          "anomaly_type",
+          "target_user",
+          "policy_action_taken",
+          "audit_event_logged",
+          "details"
+        ],
+        "title": "AnomalySimulationResponse"
+      },
+      "AuditEventResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "correlation_id": {
+            "type": "string",
+            "title": "Correlation Id"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Timestamp"
+          },
+          "actor": {
+            "type": "string",
+            "title": "Actor"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "resource_type": {
+            "type": "string",
+            "title": "Resource Type"
+          },
+          "resource_id": {
+            "type": "string",
+            "title": "Resource Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "client_ip": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Client Ip"
+          },
+          "details": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Details",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "correlation_id",
+          "timestamp",
+          "actor",
+          "action",
+          "resource_type",
+          "resource_id",
+          "status"
+        ],
+        "title": "AuditEventResponse",
+        "description": "Structured audit event representation."
+      },
+      "ContextAttributes": {
+        "properties": {
+          "device_trust": {
+            "type": "string",
+            "title": "Device Trust",
+            "description": "Device posture: 'managed', 'untrusted', 'compliant'",
+            "default": "managed",
+            "example": "managed"
+          },
+          "risk_level": {
+            "type": "string",
+            "title": "Risk Level",
+            "description": "Calculated risk score level: 'low', 'medium', 'high', 'critical'",
+            "default": "low",
+            "example": "low"
+          },
+          "ip_address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ip Address",
+            "default": "192.168.1.100",
+            "example": "192.168.1.100"
+          },
+          "geo_location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Geo Location",
+            "default": "US-WEST",
+            "example": "US-WEST"
+          }
+        },
+        "type": "object",
+        "title": "ContextAttributes",
+        "description": "Context-aware request attributes evaluated by Open Policy Agent."
+      },
+      "EventProcessingStatus": {
+        "properties": {
+          "event_id": {
+            "type": "string",
+            "title": "Event Id"
+          },
+          "ticket_id": {
+            "type": "string",
+            "title": "Ticket Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "correlation_id": {
+            "type": "string",
+            "title": "Correlation Id"
+          },
+          "details": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Details"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_id",
+          "ticket_id",
+          "status",
+          "correlation_id"
+        ],
+        "title": "EventProcessingStatus",
+        "description": "Response representing async processing state."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "LifecycleResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "ticket_id": {
+            "type": "string",
+            "title": "Ticket Id"
+          },
+          "user_email": {
+            "type": "string",
+            "title": "User Email"
+          },
+          "request_type": {
+            "type": "string",
+            "title": "Request Type"
+          },
+          "correlation_id": {
+            "type": "string",
+            "title": "Correlation Id"
+          },
+          "policy_evaluation": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Policy Evaluation"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "ticket_id",
+          "user_email",
+          "request_type",
+          "correlation_id",
+          "policy_evaluation",
+          "message"
+        ],
+        "title": "LifecycleResponse",
+        "description": "Lifecycle operation outcome response."
+      },
+      "PolicyEvaluationRequest": {
+        "properties": {
+          "subject": {
+            "$ref": "#/components/schemas/PolicySubject"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action",
+            "description": "Action being performed: read, write, delete, provision, admin",
+            "example": "read"
+          },
+          "resource": {
+            "$ref": "#/components/schemas/PolicyResource"
+          },
+          "context": {
+            "$ref": "#/components/schemas/ContextAttributes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "subject",
+          "action",
+          "resource"
+        ],
+        "title": "PolicyEvaluationRequest",
+        "description": "Payload sent to OPA or local PEP for an authorization decision."
+      },
+      "PolicyEvaluationResponse": {
+        "properties": {
+          "allow": {
+            "type": "boolean",
+            "title": "Allow"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "decision_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Decision Id"
+          },
+          "evaluated_attributes": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Evaluated Attributes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "allow",
+          "reason",
+          "evaluated_attributes"
+        ],
+        "title": "PolicyEvaluationResponse",
+        "description": "Decision output from OPA policy."
+      },
+      "PolicyResource": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "title": "Type",
+            "example": "cloud_infra"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "example": "gcp-production-kms"
+          },
+          "sensitivity": {
+            "type": "string",
+            "title": "Sensitivity",
+            "default": "high",
+            "example": "high"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "name"
+        ],
+        "title": "PolicyResource",
+        "description": "Resource being accessed."
+      },
+      "PolicySubject": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id",
+            "example": "usr-alice-101"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email",
+            "example": "alice@example.com"
+          },
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Roles",
+            "example": [
+              "security_engineer"
+            ]
+          },
+          "department": {
+            "type": "string",
+            "title": "Department",
+            "default": "Engineering",
+            "example": "Engineering"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "email",
+          "roles"
+        ],
+        "title": "PolicySubject",
+        "description": "Subject/Actor requesting access."
+      },
+      "ServiceNowLifecycleTicket": {
+        "properties": {
+          "ticket_id": {
+            "type": "string",
+            "title": "Ticket Id",
+            "description": "ITSM Ticket Reference",
+            "example": "REQ0098124"
+          },
+          "request_type": {
+            "type": "string",
+            "title": "Request Type",
+            "description": "Type of request: ONBOARD, ROLE_CHANGE, OFFBOARD",
+            "example": "ONBOARD"
+          },
+          "requester_email": {
+            "type": "string",
+            "format": "email",
+            "title": "Requester Email",
+            "example": "hr_admin@example.com"
+          },
+          "target_user_email": {
+            "type": "string",
+            "format": "email",
+            "title": "Target User Email",
+            "example": "alice@example.com"
+          },
+          "target_user_full_name": {
+            "type": "string",
+            "title": "Target User Full Name",
+            "example": "Alice Engineer"
+          },
+          "department": {
+            "type": "string",
+            "title": "Department",
+            "example": "Cloud Infrastructure"
+          },
+          "target_role": {
+            "type": "string",
+            "title": "Target Role",
+            "example": "security_engineer"
+          },
+          "justification": {
+            "type": "string",
+            "title": "Justification",
+            "example": "New hire onboarding into Cloud Security team"
+          },
+          "requested_entitlements": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Requested Entitlements",
+            "example": [
+              "aws_sso:SecOps-Admin",
+              "google_workspace:security-team",
+              "slack:secops"
+            ]
+          },
+          "context": {
+            "$ref": "#/components/schemas/ContextAttributes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ticket_id",
+          "request_type",
+          "requester_email",
+          "target_user_email",
+          "target_user_full_name",
+          "department",
+          "target_role",
+          "justification"
+        ],
+        "title": "ServiceNowLifecycleTicket",
+        "description": "Mock ServiceNow change/request ticket envelope."
+      },
+      "SessionInspectResponse": {
+        "properties": {
+          "valid": {
+            "type": "boolean",
+            "title": "Valid"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Roles",
+            "default": []
+          },
+          "issuer": {
+            "type": "string",
+            "title": "Issuer"
+          },
+          "audience": {
+            "type": "string",
+            "title": "Audience"
+          },
+          "issued_at": {
+            "type": "integer",
+            "title": "Issued At"
+          },
+          "expires_at": {
+            "type": "integer",
+            "title": "Expires At"
+          },
+          "remaining_seconds": {
+            "type": "integer",
+            "title": "Remaining Seconds"
+          },
+          "all_claims": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "All Claims"
+          }
+        },
+        "type": "object",
+        "required": [
+          "valid",
+          "subject",
+          "issuer",
+          "audience",
+          "issued_at",
+          "expires_at",
+          "remaining_seconds",
+          "all_claims"
+        ],
+        "title": "SessionInspectResponse",
+        "description": "Token claims inspection and verification status response."
+      },
+      "TokenRequest": {
+        "properties": {
+          "subject": {
+            "type": "string",
+            "title": "Subject",
+            "description": "Subject identity (e.g. employee ID or user email)",
+            "example": "usr-alice-101"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email",
+            "description": "Actor email",
+            "example": "alice@example.com"
+          },
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Roles",
+            "description": "Assigned roles",
+            "default": [
+              "engineer"
+            ],
+            "example": [
+              "engineer",
+              "cloud_admin"
+            ]
+          },
+          "department": {
+            "type": "string",
+            "title": "Department",
+            "default": "Engineering",
+            "example": "Engineering"
+          },
+          "additional_claims": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Additional Claims",
+            "description": "Optional extra OIDC claims"
+          },
+          "expires_in_minutes": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires In Minutes",
+            "description": "Token validity window in minutes",
+            "default": 60
+          }
+        },
+        "type": "object",
+        "required": [
+          "subject",
+          "email"
+        ],
+        "title": "TokenRequest",
+        "description": "Demo endpoint payload to generate a signed JWT bearer token."
+      },
+      "TokenResponse": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type",
+            "default": "Bearer"
+          },
+          "expires_in": {
+            "type": "integer",
+            "title": "Expires In"
+          },
+          "issuer": {
+            "type": "string",
+            "title": "Issuer"
+          },
+          "audience": {
+            "type": "string",
+            "title": "Audience"
+          },
+          "scope": {
+            "type": "string",
+            "title": "Scope",
+            "default": "identity:lifecycle"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "expires_in",
+          "issuer",
+          "audience"
+        ],
+        "title": "TokenResponse",
+        "description": "Bearer token response payload."
+      },
+      "TokenValidateRequest": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token",
+            "description": "Raw JWT string to inspect"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token"
+        ],
+        "title": "TokenValidateRequest",
+        "description": "Token inspection payload."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}

@@ -1,0 +1,133 @@
+version: '3.8'
+
+networks:
+  identity-net:
+    driver: bridge
+
+volumes:
+  pgdata:
+
+services:
+  # 1. PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: identity-postgres
+    environment:
+      POSTGRES_DB: identity_db
+      POSTGRES_USER: identity_user
+      POSTGRES_PASSWORD: identity_secure_pass_123
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U identity_user -d identity_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - identity-net
+
+  # 2. Open Policy Agent (OPA)
+  opa:
+    image: openpolicyagent/opa:0.62.0
+    container_name: identity-opa
+    ports:
+      - "8181:8181"
+    volumes:
+      - ./policies:/policies:ro
+    command:
+      - "run"
+      - "--server"
+      - "--log-format=json"
+      - "--addr=0.0.0.0:8181"
+      - "/policies"
+    networks:
+      - identity-net
+
+  # 3. Google Cloud Pub/Sub Emulator
+  pubsub-emulator:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+    container_name: identity-pubsub-emulator
+    ports:
+      - "8085:8085"
+    command: ["gcloud", "beta", "emulators", "pubsub", "start", "--host-port=0.0.0.0:8085", "--project=demo-cloud-security-project"]
+    healthcheck:
+      test: ["CMD", "curl", "-s", "http://localhost:8085/"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - identity-net
+
+  # 4. Helper to initialize topics and subscriptions on the Pub/Sub emulator
+  pubsub-init:
+    image: curlimages/curl:latest
+    container_name: identity-pubsub-init
+    depends_on:
+      pubsub-emulator:
+        condition: service_healthy
+    networks:
+      - identity-net
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "
+      echo 'Creating Pub/Sub topics on emulator...' &&
+      curl -s -X PUT http://pubsub-emulator:8085/v1/projects/demo-cloud-security-project/topics/identity-lifecycle-events &&
+      curl -s -X PUT http://pubsub-emulator:8085/v1/projects/demo-cloud-security-project/topics/identity-lifecycle-dlq &&
+      echo 'Creating subscriptions on emulator...' &&
+      curl -s -X PUT http://pubsub-emulator:8085/v1/projects/demo-cloud-security-project/subscriptions/identity-lifecycle-worker-sub -H 'Content-Type: application/json' -d '{\"topic\": \"projects/demo-cloud-security-project/topics/identity-lifecycle-events\", \"ackDeadlineSeconds\": 60}' &&
+      curl -s -X PUT http://pubsub-emulator:8085/v1/projects/demo-cloud-security-project/subscriptions/identity-lifecycle-dlq-sub -H 'Content-Type: application/json' -d '{\"topic\": \"projects/demo-cloud-security-project/topics/identity-lifecycle-dlq\"}' &&
+      echo 'Pub/Sub emulator initialized successfully.'
+      "
+
+  # 5. API Gateway Service (FastAPI)
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: identity-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      pubsub-init:
+        condition: service_completed_successfully
+      opa:
+        condition: service_started
+    ports:
+      - "8000:8000"
+    environment:
+      ENVIRONMENT: development
+      API_HOST: "0.0.0.0"
+      API_PORT: 8000
+      DATABASE_URL: "postgresql+asyncpg://identity_user:identity_secure_pass_123@postgres:5432/identity_db"
+      OPA_URL: "http://opa:8181"
+      PUBSUB_EMULATOR_HOST: "pubsub-emulator:8085"
+      GCP_PROJECT_ID: "demo-cloud-security-project"
+      PUBSUB_TOPIC_LIFECYCLE: "identity-lifecycle-events"
+      PUBSUB_TOPIC_DLQ: "identity-lifecycle-dlq"
+      JWT_SECRET_KEY: "demo-insecure-secret-key-change-in-production-only-32bytes-min"
+    networks:
+      - identity-net
+
+  # 6. Asynchronous Event Worker Service
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: identity-worker
+    depends_on:
+      postgres:
+        condition: service_healthy
+      pubsub-init:
+        condition: service_completed_successfully
+    command: ["python", "-m", "src.worker.consumer"]
+    environment:
+      ENVIRONMENT: development
+      DATABASE_URL: "postgresql+asyncpg://identity_user:identity_secure_pass_123@postgres:5432/identity_db"
+      PUBSUB_EMULATOR_HOST: "pubsub-emulator:8085"
+      GCP_PROJECT_ID: "demo-cloud-security-project"
+      PUBSUB_SUBSCRIPTION_LIFECYCLE: "identity-lifecycle-worker-sub"
+      PUBSUB_TOPIC_DLQ: "identity-lifecycle-dlq"
+    networks:
+      - identity-net

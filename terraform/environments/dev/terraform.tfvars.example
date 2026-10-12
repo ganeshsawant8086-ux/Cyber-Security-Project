@@ -1,0 +1,15 @@
+# ==============================================================================
+# Terraform Variables Example - Development Environment
+# Copy this file to 'terraform.tfvars' and supply your project variables.
+# Do NOT commit actual terraform.tfvars containing real IDs/keys to version control.
+# ==============================================================================
+
+project_id      = "demo-cloud-security-project"
+region          = "us-central1"
+environment     = "dev"
+container_image = "gcr.io/demo-cloud-security-project/identity-orchestrator:latest"
+
+lifecycle_topic_name     = "identity-lifecycle-events"
+dlq_topic_name           = "identity-lifecycle-dlq"
+worker_subscription_name = "identity-lifecycle-worker-sub"
+opa_url                  = "http://opa:8181"

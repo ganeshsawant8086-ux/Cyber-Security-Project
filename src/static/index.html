@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Identity Lifecycle & Access Orchestration Platform</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo-section">
+        <div class="logo-badge">🛡️</div>
+        <div class="title-wrap">
+          <h1>Identity & Access Orchestration</h1>
+          <p>Zero-Trust Governance · Open Policy Agent (OPA) · GCP Pub/Sub · Cloud Security</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="status-pill" id="system-status-pill">
+          <div class="status-pulse"></div>
+          <span id="system-status-text">System Active</span>
+        </div>
+        <div class="persona-box">
+          <label>Caller Persona:</label>
+          <select id="persona-select" class="persona-select" onchange="switchPersona()">
+            <option value="alice_hr">Alice (HR Admin)</option>
+            <option value="bob_identity">Bob (Identity / SecOps Admin)</option>
+            <option value="charlie_contractor">Charlie (Restricted Contractor)</option>
+            <option value="eve_engineer">Eve (Standard Engineer)</option>
+          </select>
+        </div>
+        <a href="https://github.com/ganeshsawant8086-ux/identity-access-orchestrator" target="_blank" class="btn btn-secondary" style="padding: 7px 14px; font-size: 0.82rem; gap: 6px; border-radius: 9999px;">
+          <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor" style="vertical-align: middle;"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
+          GitHub
+        </a>
+      </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="tabs-nav">
+      <button class="tab-btn active" onclick="showTab('lifecycle')">🔄 Lifecycle Ingress (ServiceNow)</button>
+      <button class="tab-btn" onclick="showTab('policy')">⚖️ Context-Aware OPA (ABAC)</button>
+      <button class="tab-btn" onclick="showTab('anomalies')">🚨 Anomaly Simulation</button>
+      <button class="tab-btn" onclick="showTab('audit')">📜 Audit Trail & SIEM</button>
+      <button class="tab-btn" onclick="showTab('tokens')">🔑 Token & Session Inspector</button>
+      <button class="tab-btn" onclick="showTab('apidocs')">📖 API Docs (Swagger)</button>
+    </nav>
+
+    <!-- TAB 1: Lifecycle Ingress (ServiceNow) -->
+    <div id="tab-lifecycle" class="tab-panel active">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">ServiceNow Lifecycle Ticket Ingress</h2>
+            <p class="card-subtitle">Receive and orchestrate employee onboarding, role change, and urgent offboarding.</p>
+          </div>
+          <form id="lifecycle-form" onsubmit="submitLifecycleTicket(event)">
+            <div class="form-group">
+              <label class="form-label">Operation Type</label>
+              <select id="ticket-type" class="form-select">
+                <option value="ONBOARD">ONBOARD (New Hire Provisioning)</option>
+                <option value="ROLE_CHANGE">ROLE_CHANGE (Privilege Transition)</option>
+                <option value="OFFBOARD">OFFBOARD (Immediate Deprovisioning & Revocation)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Ticket ID (ITSM Reference)</label>
+              <input type="text" id="ticket-id" class="form-input" value="REQ0098124" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Target User Email</label>
+              <input type="email" id="target-email" class="form-input" value="bob.devops@example.com" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Target Role</label>
+              <select id="target-role" class="form-select">
+                <option value="devops">DevOps Engineer</option>
+                <option value="security_engineer">Security Engineer (Privileged)</option>
+                <option value="cloud_admin">Cloud Admin (High Privilege)</option>
+                <option value="engineer">Standard Software Engineer</option>
+                <option value="contractor">External Contractor</option>
+              </select>
+            </div>
+            <div class="grid-2">
+              <div class="form-group">
+                <label class="form-label">Device Posture Context</label>
+                <select id="device-trust" class="form-select">
+                  <option value="managed">Managed & Compliant (Corporate Laptop)</option>
+                  <option value="compliant">Compliant BYOD</option>
+                  <option value="untrusted">Untrusted / Unknown Device</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Context Risk Level</label>
+                <select id="risk-level" class="form-select">
+                  <option value="low">Low Risk</option>
+                  <option value="medium">Medium Risk</option>
+                  <option value="high">High Risk</option>
+                  <option value="critical">Critical Risk</option>
+                </select>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary" id="btn-submit-lifecycle">🚀 Submit Lifecycle Ticket</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Live Pipeline Execution Outcome</h2>
+            <p class="card-subtitle">FastAPI PEP -> OPA Policy Decision -> DB Mutation -> Pub/Sub Broker</p>
+          </div>
+          <div id="lifecycle-result-view" class="code-box">Waiting for ticket submission...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: Context-Aware OPA (ABAC) -->
+    <div id="tab-policy" class="tab-panel">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Context-Aware Policy Decision Point (PDP)</h2>
+            <p class="card-subtitle">Evaluate dynamic zero-trust access decisions through Open Policy Agent (OPA).</p>
+          </div>
+          <div style="margin-bottom: 20px;">
+            <label class="form-label">One-Click Demonstration Presets:</label>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button class="btn btn-secondary" onclick="loadPolicyPreset('contractor_kms')">🚫 Contractor to Cloud KMS</button>
+              <button class="btn btn-secondary" onclick="loadPolicyPreset('untrusted_admin')">🚫 Untrusted Device Write</button>
+              <button class="btn btn-secondary" onclick="loadPolicyPreset('secops_prod')">✅ SecOps to Cloud Infra</button>
+            </div>
+          </div>
+          <form id="policy-form" onsubmit="evaluatePolicy(event)">
+            <div class="form-group">
+              <label class="form-label">Subject Role</label>
+              <input type="text" id="pol-subject-role" class="form-input" value="contractor">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Requested Action</label>
+              <select id="pol-action" class="form-select">
+                <option value="read">read</option>
+                <option value="write">write</option>
+                <option value="admin">admin</option>
+                <option value="delete">delete</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Resource Type & Sensitivity</label>
+              <div class="grid-2">
+                <input type="text" id="pol-res-type" class="form-input" value="cloud_infra">
+                <select id="pol-res-sens" class="form-select">
+                  <option value="critical">Critical</option>
+                  <option value="high">High</option>
+                  <option value="medium">Medium</option>
+                  <option value="low">Low</option>
+                </select>
+              </div>
+            </div>
+            <div class="grid-2">
+              <div class="form-group">
+                <label class="form-label">Device Trust</label>
+                <select id="pol-device-trust" class="form-select">
+                  <option value="managed">managed</option>
+                  <option value="compliant">compliant</option>
+                  <option value="untrusted">untrusted</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Risk Level</label>
+                <select id="pol-risk-level" class="form-select">
+                  <option value="low">low</option>
+                  <option value="medium">medium</option>
+                  <option value="high">high</option>
+                  <option value="critical">critical</option>
+                </select>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary">⚖️ Query OPA Policy Decision</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">OPA Decision & Rego Reasoning</h2>
+            <p class="card-subtitle">Real-time evaluation response from identity.authz policy</p>
+          </div>
+          <div id="policy-result-view" class="code-box">Select a preset or submit the form to query OPA...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: Anomaly Simulation -->
+    <div id="tab-anomalies" class="tab-panel">
+      <div class="card-header" style="margin-bottom: 24px;">
+        <h2 class="card-title">Simulate Security Anomalies & Threat Mitigation</h2>
+        <p class="card-subtitle">Test how context-aware zero-trust policies mitigate threat scenarios and generate SIEM alerts.</p>
+      </div>
+
+      <div class="anomaly-grid">
+        <div class="anomaly-card" onclick="simulateAnomaly('IMPOSSIBLE_TRAVEL')">
+          <div class="anomaly-title">🌍 Impossible Travel Anomaly</div>
+          <div class="anomaly-desc">Simulates concurrent logins from Bucharest Tor exit node and US-West within seconds.</div>
+        </div>
+        <div class="anomaly-card" onclick="simulateAnomaly('UNTRUSTED_DEVICE_ADMIN')">
+          <div class="anomaly-title">💻 Untrusted Device Privilege Use</div>
+          <div class="anomaly-desc">Admin operation attempted from an unmanaged personal device without device certs.</div>
+        </div>
+        <div class="anomaly-card" onclick="simulateAnomaly('PRIVILEGE_ESCALATION')">
+          <div class="anomaly-title">⚡ Privilege Escalation Attempt</div>
+          <div class="anomaly-desc">Non-admin employee attempting to assign themselves the cloud_admin IAM role.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Mitigation & Security Event Telemetry</h2>
+        </div>
+        <div id="anomaly-result-view" class="code-box">Click any scenario above to trigger a live threat simulation...</div>
+      </div>
+    </div>
+
+    <!-- TAB 4: Audit Trail & SIEM -->
+    <div id="tab-audit" class="tab-panel">
+      <div class="card">
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <h2 class="card-title">Structured Audit Trail & SIEM Telemetry</h2>
+            <p class="card-subtitle">Immutable log records with correlation IDs, sanitized details, and status codes.</p>
+          </div>
+          <button class="btn btn-secondary" onclick="loadAuditLogs()">🔄 Refresh Audit Trail</button>
+        </div>
+
+        <div style="overflow-x: auto;">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Actor</th>
+                <th>Action</th>
+                <th>Resource</th>
+                <th>Status</th>
+                <th>Correlation ID</th>
+              </tr>
+            </thead>
+            <tbody id="audit-tbody">
+              <tr><td colspan="6" style="text-align: center; color: var(--text-muted);">Loading audit trail...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 5: Token & Session Inspector -->
+    <div id="tab-tokens" class="tab-panel">
+      <div class="grid-2">
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Active Persona Token Claims</h2>
+            <p class="card-subtitle">Cryptographically verified OIDC / OAuth2 Bearer token used for caller requests.</p>
+          </div>
+          <div id="active-token-view" class="code-box">Loading token details...</div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Mint Custom Test JWT</h2>
+            <p class="card-subtitle">Generate custom tokens to test arbitrary claims, roles, and validity windows.</p>
+          </div>
+          <form onsubmit="mintCustomToken(event)">
+            <div class="form-group">
+              <label class="form-label">Subject</label>
+              <input type="text" id="custom-subject" class="form-input" value="custom-tester-101">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email</label>
+              <input type="email" id="custom-email" class="form-input" value="tester@example.com">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Roles (comma-separated)</label>
+              <input type="text" id="custom-roles" class="form-input" value="engineer, secops">
+            </div>
+            <button type="submit" class="btn btn-primary">Generate Signed Token</button>
+          </form>
+          <div id="minted-token-view" class="code-box" style="margin-top: 16px; display: none;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 6: API Docs -->
+    <div id="tab-apidocs" class="tab-panel">
+      <div class="card">
+        <div class="card-header">
+          <h2 class="card-title">Interactive OpenAPI & Swagger Documentation</h2>
+          <p class="card-subtitle">Explore raw interactive documentation generated directly from FastAPI.</p>
+        </div>
+        <div style="display: flex; gap: 16px; margin-bottom: 24px;">
+          <a href="/docs" target="_blank" class="btn btn-primary">📖 Open Swagger UI (/docs)</a>
+          <a href="/redoc" target="_blank" class="btn btn-secondary">📘 Open ReDoc (/redoc)</a>
+          <a href="/openapi.json" target="_blank" class="btn btn-secondary">📄 View OpenAPI 3.1 JSON</a>
+        </div>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">
+          The Swagger UI provides direct API execution and sandbox schema testing across all 12 platform endpoints.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
