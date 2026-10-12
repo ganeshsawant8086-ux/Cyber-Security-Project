@@ -1,6 +1,6 @@
 # Identity Lifecycle and Access Orchestration Platform
 
-[![CI Pipeline](https://github.com/demo-cloud-security/identity-access-orchestrator/actions/workflows/ci.yml/badge.svg)](https://github.com/)
+[![CI Pipeline](https://github.com/ganeshsawant8086-ux/Cyber-Security-Project/actions/workflows/ci.yml/badge.svg)](https://github.com/ganeshsawant8086-ux/Cyber-Security-Project)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/framework-FastAPI-009688.svg)](https://fastapi.tiangolo.com)
 [![Open Policy Agent](https://img.shields.io/badge/policy-OPA%20%2F%20Rego-gray.svg)](https://www.openpolicyagent.org/)
